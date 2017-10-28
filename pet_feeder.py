@@ -6,7 +6,7 @@ from pyb import LED
 green_led = LED(2)
 
 SSID ='AAGG-W24'     # Network SSID
-KEY  ='Wireless4me'  # Network key
+KEY  =''  # Network key
 SERVER_ADDRESS = (HOST, PORT) = '', 8088
 LOG_FILE = 'log.txt'
 
