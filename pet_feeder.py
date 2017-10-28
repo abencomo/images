@@ -1,21 +1,13 @@
-# Untitled - By: abencomo - Sun Oct 8 2017
+# Pet Feeder - By: abencomo - Sun Oct 8 2017
 
-# MJPEG Streaming
-#
-# This example shows off how to do MJPEG streaming to a FIREFOX webrowser
-# Chrome, Firefox and MJpegViewer App on Android have been tested.
-# Connect to the IP address/port printed out from ifconfig to view the stream.
-
-import sensor, image, network, usocket, sys
+import sensor, image, network, usocket, sys, utime
 from pyb import LED
 
 green_led = LED(2)
 
 SSID ='AAGG-W24'     # Network SSID
 KEY  ='Wireless4me'  # Network key
-
 SERVER_ADDRESS = (HOST, PORT) = '', 8088
-
 LOG_FILE = 'log.txt'
 
 # Set sensor settings
@@ -40,7 +32,7 @@ server = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
 # Bind and listen
 try:
     server.bind([HOST, PORT])
-    server.listen(1)
+    server.listen(4)
 except OSError:
     machine.reset()
 
@@ -56,23 +48,28 @@ html = """<!DOCTYPE html>
         <input type="button" id="feed" value="Feed Me!" onclick="feed(this);">
         %s
         <script>
-            var image = document.getElementById("openmv");
+            const EPOCH_2000 = 946684800;
+            var image = document.getElementById('openmv');
 
             (function pullImage() {
-                image.src = "http://23.127.160.111:8088/cam.mjpg" + "?" + new Date().getTime();
+                var date = new Date();
+                var timezone_offset = date.getTimezoneOffset() * 60;
+                image.src = 'http://23.127.160.111:8088/cam.mjpg' + '?' + ((parseInt(date.getTime()/1000) - EPOCH_2000) - timezone_offset);
                 setTimeout(pullImage, 700);
             })();
 
             function feed(obj) {
+                var date = new Date();
+                var timezone_offset = date.getTimezoneOffset() * 60;
+                var feed = 'feed?' + ((parseInt(date.getTime()/1000) - EPOCH_2000) - timezone_offset);
                 var xmlhttp = new XMLHttpRequest();
                 xmlhttp.onreadystatechange = function() {};
-                xmlhttp.open("GET", "feed", true);
+                xmlhttp.open("GET", feed, true);
                 xmlhttp.send();
                 obj.disabled = true;
                 setTimeout(function() {
                     obj.disabled = false;
-                    var date = new Date();
-                    document.getElementById("lastfeed").innerHTML = "Last Feed: " + date.toDateString() + ' @ ' + date.toLocaleTimeString();
+                    document.getElementById('lastfeed').innerHTML = 'Last Feed: ' + date.toDateString() + ' @ ' + date.toLocaleTimeString();
                 }, 3000);
             }
         </script>
@@ -87,13 +84,8 @@ def start_webserver(server):
            green_led.on()
            client, addr = server.accept()
            green_led.off()
-           #print("Got a connection from %s" % str(addr))
-
            client.settimeout(9.0)
-
            request = client.recv(1024)
-
-           # Should parse client request here
            path_info = get_path_info(request.decode('utf-8').splitlines()[0])
            print(path_info)
 
@@ -103,13 +95,17 @@ def start_webserver(server):
                            "Content-Type: text/html\r\n" \
                            "Cache-Control: max-age=0,must-revalidate\r\n" \
                            "Pragma: no-cache\r\n\r\n")
-               ptag = '<p id="lastfeed">T</p>' % 'Z'
+               ptag = '<p id="lastfeed">%s</p>' % 'Z'
                response = html % ptag
                client.send(response)
                #client.send('\n')
            elif path_info.endswith('/feed'):
                client.send("HTTP/1.1 200 OK\r\n\r\n")
            else:
+               parameter = path_info.split("?")
+               if len(parameter) > 1:
+                   print(utime.localtime(int(parameter[1])))
+
                # Send multipart header
                client.send("HTTP/1.1 200 OK\r\n" \
                            "Server: OpenMV\r\n" \
